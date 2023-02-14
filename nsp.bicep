@@ -1,12 +1,12 @@
-param perimeter_name string = 'nsp-centraluseuap'
+param perimeter_name_prefix string = 'nsp-'
 param perimeter_location string = 'centraluseuap'
 param storage_account string = 'nspsa'
 param shoebox_name string = 'shoebox'
-param inbound_ip_range []string 
-param user_outbound_fqdns []string
+param inbound_ip_ranges array = ['127.0.0.1']
+param user_outbound_fqdns array = ['my-webhook.my-company.com']
 
 resource perimeter 'Microsoft.Network/networkSecurityPerimeters@2021-02-01-preview' = {
-  name: perimeter_name
+  name: '${perimeter_name_prefix}${uniqueString(resourceGroup().id, perimeter_location)}'
   location: perimeter_location
 
   resource aksprofile 'profiles' = {
@@ -17,7 +17,7 @@ resource perimeter 'Microsoft.Network/networkSecurityPerimeters@2021-02-01-previ
       name: 'aksInbound'
       properties: {
         direction: 'Inbound'
-        addressPrefixes: inbound_ip_range
+        addressPrefixes: inbound_ip_ranges
       }
     }
 
@@ -85,4 +85,7 @@ resource shoebox 'microsoft.insights/diagnosticSettings@2021-05-01-preview' = {
   scope: perimeter
   dependsOn: [perimeter, sa]
 }
+
+output resource_id string = perimeter.id
+
 
