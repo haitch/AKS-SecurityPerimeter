@@ -2,8 +2,8 @@ param perimeter_name_prefix string = 'nsp-'
 param perimeter_location string = 'centraluseuap'
 param storage_account string = 'nspsa'
 param shoebox_name string = 'shoebox'
-param inbound_ip_ranges array = ['127.0.0.1']
-param user_outbound_fqdns array = ['my-webhook.my-company.com']
+param inbound_ip_ranges array = [ '127.0.0.1' ]
+param user_outbound_fqdns array = [ 'my-webhook.my-company.com' ]
 
 resource perimeter 'Microsoft.Network/networkSecurityPerimeters@2021-02-01-preview' = {
   name: '${perimeter_name_prefix}${uniqueString(resourceGroup().id, perimeter_location)}'
@@ -13,21 +13,20 @@ resource perimeter 'Microsoft.Network/networkSecurityPerimeters@2021-02-01-previ
     name: 'aksTraffic'
     location: perimeter_location
 
-    resource aksInbound 'accessRules' = {
-      name: 'aksInbound'
+    resource ipInbound 'accessRules' = {
+      name: 'ipInbound'
       properties: {
         direction: 'Inbound'
         addressPrefixes: inbound_ip_ranges
       }
     }
 
-
     resource subInbound 'accessRules' = {
       name: 'subInbound'
       properties: {
         direction: 'Inbound'
         subscriptions: [
-         {id: '${subscription().id}'}
+          { id: '${subscription().id}' }
         ]
       }
     }
@@ -56,7 +55,6 @@ resource perimeter 'Microsoft.Network/networkSecurityPerimeters@2021-02-01-previ
   }
 }
 
-
 resource sa 'Microsoft.Storage/storageAccounts@2022-05-01' = {
   name: '${storage_account}${uniqueString(resourceGroup().id)}'
   location: perimeter_location
@@ -83,9 +81,7 @@ resource shoebox 'microsoft.insights/diagnosticSettings@2021-05-01-preview' = {
     storageAccountId: '${resourceId(resourceGroup().name, 'Microsoft.Storage/storageAccounts', '${storage_account}${uniqueString(resourceGroup().id)}')}'
   }
   scope: perimeter
-  dependsOn: [perimeter, sa]
+  dependsOn: [ perimeter, sa ]
 }
 
 output resource_id string = perimeter.id
-
-
