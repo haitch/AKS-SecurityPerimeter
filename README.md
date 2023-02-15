@@ -1,5 +1,10 @@
 # AKS-SecurityPerimeter
 
+This setup a demo environment with AKS, AKV regulated by NetworkSecurityPerimeter(may require azure feature registration)
+- AKS talk to AKV within same perimeter
+- AKV need to be open for AKS on initial setup
+- both AKS and AKV have PublicNetworkAccess=SecuredByPerimeter at the end of setup.
+
 ### Create Resources
 ```
 az deployment group create -g nspdemo --template-file aks.bicep -n aks --parameters inbound_ip_ranges='["76.121.92.184/32","167.220.0.0/16"]' aks_aad_admin=<aad_admin_id>
