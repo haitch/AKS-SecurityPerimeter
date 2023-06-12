@@ -5,7 +5,6 @@ param aks_cluster_location string = 'westus2'
 param aks_node_sku string = 'standard_b4ms'
 param k8s_user_assigned_id string = 'k8sid-'
 param aks_aad_admin string
-param associate bool = false
 param inbound_ip_ranges array = ['127.0.0.1']
 param user_outbound_fqdns array = ['my-webhook.my-company.com']
 param perimeter_name_prefix string = 'nsp-'
@@ -36,7 +35,7 @@ module akv 'akv.bicep' = {
     key_vault_location: key_vault_location
     k8s_identity_id: k8sidentity.outputs.principal_id
     deploy_secret: true
-    public_network_access: associate ? 'SecuredByPerimeter' : 'Enabled'
+    public_network_access: 'Enabled' // AKS provisioning rely on AKV being reachable.
   }
 }
 
@@ -81,6 +80,9 @@ resource securedAKS 'Microsoft.ContainerService/managedClusters@2022-10-02-previ
       networkPlugin: 'kubenet'
       loadBalancerSku: 'Standard'
     }
+    oidcIssuerProfile: {
+      enabled: true
+    }
     aadProfile: {
       managed: true
       enableAzureRBAC: true
@@ -88,7 +90,7 @@ resource securedAKS 'Microsoft.ContainerService/managedClusters@2022-10-02-previ
         aks_aad_admin
       ]
     }
-    publicNetworkAccess: associate ? 'SecuredByPerimeter' : 'Disabled'
+    publicNetworkAccess: 'SecuredByPerimeter'
     securityProfile: {
       azureKeyVaultKms: {
         enabled: true
@@ -99,26 +101,27 @@ resource securedAKS 'Microsoft.ContainerService/managedClusters@2022-10-02-previ
   }
 }
 
-/* keyvault reject ARM deployment after NSP enabling.
-{ "error": {"code": "ForbiddenByNsp", "message": "[ForbiddenByNsp (Forbidden)] The request was forbidden by NSP policy. Caller: name=KeyVault/ManagementPlane;appid=c44b4083-3bb0-49c1-b47d-974e53cbdf3c;oid=f31399da-e7ed-4fe4-a825-a9dff4f53481" }
-
-module akv_into_nsp 'association.bicep' = {
-  name: 'akv_into_nsp'
+module associations 'association.bicep' = {
+  name: 'aks_akv_into_nsp'
+  dependsOn: [akv, nsp, securedAKS]
   params: {
-    resource_id: akv.outputs.resource_id
+    aks_cluster_name_prefix: aks_cluster_name_prefix
+    aks_cluster_location: aks_cluster_location
     perimeter_name_prefix: perimeter_name_prefix
     perimeter_location: perimeter_location
-    association_name: 'akv_in_nsp'
+    key_vault_name_prefix: key_vault_name_prefix
+    key_vault_location: key_vault_location
   }
 }
 
-module aks_into_nsp 'association.bicep' = {
-  name: 'aks_into_nsp'
+module akvSecured 'akv.bicep' = {
+  name: 'akvSecured'
+  dependsOn: [associations] // after association finished we can update keyVault to SecuredByPerimeter
   params: {
-    aks_cluster_location: securedAKS.id
-    perimeter_name_prefix: perimeter_name_prefix
-    perimeter_location: perimeter_location
-    association_name: 'aks_in_nsp'
+    key_vault_name_prefix: key_vault_name_prefix
+    key_vault_location: key_vault_location
+    k8s_identity_id: k8sidentity.outputs.principal_id
+    deploy_secret: true
+    public_network_access: 'SecuredByPerimeter'
   }
 }
-*/
