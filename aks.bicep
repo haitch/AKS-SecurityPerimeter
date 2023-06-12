@@ -5,7 +5,6 @@ param aks_cluster_location string = 'westus2'
 param aks_node_sku string = 'standard_b4ms'
 param k8s_user_assigned_id string = 'k8sid-'
 param aks_aad_admin string
-param associate bool = false
 param inbound_ip_ranges array = ['127.0.0.1']
 param user_outbound_fqdns array = ['my-webhook.my-company.com']
 param perimeter_name_prefix string = 'nsp-'
@@ -36,7 +35,7 @@ module akv 'akv.bicep' = {
     key_vault_location: key_vault_location
     k8s_identity_id: k8sidentity.outputs.principal_id
     deploy_secret: true
-    public_network_access: associate ? 'SecuredByPerimeter' : 'Enabled'
+    public_network_access: 'Enabled' // AKS provisioning rely on AKV being reachable.
   }
 }
 
@@ -81,6 +80,9 @@ resource securedAKS 'Microsoft.ContainerService/managedClusters@2022-10-02-previ
       networkPlugin: 'kubenet'
       loadBalancerSku: 'Standard'
     }
+    oidcIssuerProfile: {
+      enabled: true
+    }
     aadProfile: {
       managed: true
       enableAzureRBAC: true
@@ -88,7 +90,7 @@ resource securedAKS 'Microsoft.ContainerService/managedClusters@2022-10-02-previ
         aks_aad_admin
       ]
     }
-    publicNetworkAccess: associate ? 'SecuredByPerimeter' : 'Disabled'
+    publicNetworkAccess: 'SecuredByPerimeter'
     securityProfile: {
       azureKeyVaultKms: {
         enabled: true
@@ -109,5 +111,17 @@ module associations 'association.bicep' = {
     perimeter_location: perimeter_location
     key_vault_name_prefix: key_vault_name_prefix
     key_vault_location: key_vault_location
+  }
+}
+
+module akvSecured 'akv.bicep' = {
+  name: 'akvSecured'
+  dependsOn: [associations] // after association finished we can update keyVault to SecuredByPerimeter
+  params: {
+    key_vault_name_prefix: key_vault_name_prefix
+    key_vault_location: key_vault_location
+    k8s_identity_id: k8sidentity.outputs.principal_id
+    deploy_secret: true
+    public_network_access: 'SecuredByPerimeter'
   }
 }
