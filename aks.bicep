@@ -8,7 +8,7 @@ param aks_aad_admin string
 param inbound_ip_ranges array = ['127.0.0.1']
 param user_outbound_fqdns array = ['my-webhook.my-company.com']
 param perimeter_name_prefix string = 'nsp-'
-param perimeter_location string = 'centraluseuap'
+param perimeter_location string = 'northcentralus'
 
 module nsp 'nsp.bicep' = {
   name: 'nsp'
@@ -90,7 +90,7 @@ resource securedAKS 'Microsoft.ContainerService/managedClusters@2022-10-02-previ
         aks_aad_admin
       ]
     }
-    publicNetworkAccess: 'SecuredByPerimeter'
+    publicNetworkAccess: 'Disabled'
     securityProfile: {
       azureKeyVaultKms: {
         enabled: true
